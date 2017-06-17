@@ -1,10 +1,9 @@
 package symlock
 
-import "sync"
+import "hash/fnv"
 
 type SymLock struct {
-	mutex   sync.Mutex
-	entries map[string]*symLockEntry
+	partitions []partition
 }
 
 func (s *SymLock) WithMutex(symbol string, action func()) {
@@ -15,34 +14,54 @@ func (s *SymLock) WithMutex(symbol string, action func()) {
 }
 
 func (s *SymLock) acquireEntry(symbol string) *symLockEntry {
-	s.mutex.Lock()
+	p := s.partitionForSymbol(symbol)
+	p.mutex.Lock()
 
-	e, ok := s.entries[symbol]
+	e, ok := p.entries[symbol]
 	if !ok {
-		if s.entries == nil {
-			s.entries = make(map[string]*symLockEntry)
+		if p.entries == nil {
+			p.entries = make(map[string]*symLockEntry)
 		}
 
 		e = &symLockEntry{}
-		s.entries[symbol] = e
+		p.entries[symbol] = e
 	}
 
 	e.refCount++
 
-	s.mutex.Unlock()
+	p.mutex.Unlock()
 
 	e.Lock()
 	return e
 }
 
+func (s *SymLock) partitionForSymbol(symbol string) *partition {
+	hash := fnv.New32a()
+	hash.Write([]byte(symbol))
+
+	index := hash.Sum32() % uint32(len(s.partitions))
+	return &s.partitions[index]
+}
+
 func (s *SymLock) releaseEntry(symbol string, e *symLockEntry) {
 	e.Unlock()
 
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	p := s.partitionForSymbol(symbol)
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
 	e.refCount--
 	if e.refCount <= 0 {
-		delete(s.entries, symbol)
+		delete(p.entries, symbol)
+	}
+}
+
+func New() *SymLock {
+	return NewWithPartitions(1)
+}
+
+func NewWithPartitions(n int) *SymLock {
+	return &SymLock{
+		partitions: make([]partition, n),
 	}
 }

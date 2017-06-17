@@ -16,7 +16,7 @@ SymLocks provide mutual exclusion on a string value rather than a specific lock 
 Use a SymLock like this:
 
 ```go
-var s symlock.SymLock
+s := symlock.New()
 
 s.WithMutex("some string value symbolising a mutex point", func() {
     // Do some things which require mutexing on something represented by the provided string
@@ -37,5 +37,15 @@ go s.WithMutex("apple", func() {
 go s.WithMutex("pear", func() {
     // Do some stuff that can run concurrently with code using "apple" as
     // the mutex symbol, but not with other code that might be using "pear"
+})
+```
+
+For very high concurrency, it may be more efficient to use partitions to reduce lock contention:
+
+```go
+s := symlock.NewWithPartitions(16)
+
+s.WithMutex("symbol", func() {
+	// Do stuff
 })
 ```

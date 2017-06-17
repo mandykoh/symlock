@@ -9,7 +9,7 @@ import (
 func TestSymLock(t *testing.T) {
 
 	t.Run("WithMutex() synchronises on a symbol", func(t *testing.T) {
-		var s SymLock
+		var s = New()
 
 		var count int
 		var condMutex = &sync.Mutex{}
@@ -46,12 +46,12 @@ func TestSymLock(t *testing.T) {
 		doneGroup.Wait()
 
 		if count != 10000*workerCount {
-			t.Errorf("Possible race condition detected; expected count of %d but got %d", 1000*workerCount, count)
+			t.Errorf("Possible race condition detected; expected count of %d but got %d", 10000*workerCount, count)
 		}
 	})
 
 	t.Run("WithMutex() creates an entry for each symbol", func(t *testing.T) {
-		var s SymLock
+		var s = New()
 
 		var workerCount = 32
 
@@ -79,8 +79,8 @@ func TestSymLock(t *testing.T) {
 
 		readyGroup.Wait()
 
-		if count := len(s.entries); count != workerCount {
-			t.Errorf("Expected %d entries to be active up but found %d", workerCount, count)
+		if count := len(s.partitions[0].entries); count != workerCount {
+			t.Errorf("Expected %d entries to be active but found %d", workerCount, count)
 		}
 
 		finishCond.Broadcast()
@@ -88,7 +88,7 @@ func TestSymLock(t *testing.T) {
 	})
 
 	t.Run("WithMutex() cleans up old entries", func(t *testing.T) {
-		var s SymLock
+		var s = New()
 
 		var workerCount = 32
 
@@ -106,7 +106,7 @@ func TestSymLock(t *testing.T) {
 
 		doneGroup.Wait()
 
-		if count := len(s.entries); count != 0 {
+		if count := len(s.partitions[0].entries); count != 0 {
 			t.Errorf("Expected all entries to be cleaned up but found %d", count)
 		}
 	})
