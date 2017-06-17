@@ -40,7 +40,7 @@ go s.WithMutex("pear", func() {
 })
 ```
 
-For very high concurrency, it may be more efficient to use partitions to reduce lock contention:
+For very high concurrency situations, it may be more efficient to use partitions to reduce lock contention:
 
 ```go
 s := symlock.NewWithPartitions(16)
