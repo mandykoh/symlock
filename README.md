@@ -46,6 +46,6 @@ For very high concurrency situations, it may be more efficient to use partitions
 s := symlock.NewWithPartitions(16)
 
 s.WithMutex("symbol", func() {
-	// Do stuff
+    // Do stuff
 })
 ```
