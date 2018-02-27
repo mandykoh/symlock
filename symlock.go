@@ -34,9 +34,9 @@ func (s symLock) partitionForSymbol(symbol string) *sync.Mutex {
 }
 
 // New creates and returns a new SymLock with a default number of partitions,
-// equal to the number of processors.
+// equal to twice the number of processors.
 func New() SymLock {
-	return NewWithPartitions(runtime.NumCPU())
+	return NewWithPartitions(runtime.NumCPU() * 2)
 }
 
 // NewWithPartitions creates and returns a new SymLock with the specified

@@ -23,7 +23,7 @@ s.WithMutex("some string value symbolising a mutex point", func() {
 })
 ```
 
-By default, `New()` will return a SymLock with the same number of partitions as there are processors (the degree of concurrency is limited by the number of partitions). You can specify the number of partitions like this:
+By default, `New()` will return a SymLock with twice the number of partitions as there are processors (the degree of concurrency is limited by the number of partitions). You can specify the number of partitions like this:
 
 ```go
 s := symlock.NewWithPartitions(16)
