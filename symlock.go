@@ -1,67 +1,48 @@
 package symlock
 
-import "hash/fnv"
+import (
+	"hash/fnv"
+	"runtime"
+	"sync"
+)
 
-type SymLock struct {
-	partitions []partition
+// SymLock is the interface for a symbolic lock.
+//
+// WithMutex executes the specified action using the given symbol for
+// mutual exclusion. No two goroutines using the same SymLock and the same
+// symbol will execute concurrently with each other.
+type SymLock interface {
+	WithMutex(symbol string, action func())
 }
 
-func (s *SymLock) WithMutex(symbol string, action func()) {
-	e := s.acquireEntry(symbol)
-	defer s.releaseEntry(symbol, e)
+type symLock []sync.Mutex
+
+func (s symLock) WithMutex(symbol string, action func()) {
+	p := s.partitionForSymbol(symbol)
+	p.Lock()
+	defer p.Unlock()
 
 	action()
 }
 
-func (s *SymLock) acquireEntry(symbol string) *symLockEntry {
-	p := s.partitionForSymbol(symbol)
-	p.mutex.Lock()
-
-	e, ok := p.entries[symbol]
-	if !ok {
-		if p.entries == nil {
-			p.entries = make(map[string]*symLockEntry)
-		}
-
-		e = &symLockEntry{}
-		p.entries[symbol] = e
-	}
-
-	e.refCount++
-
-	p.mutex.Unlock()
-
-	e.Lock()
-	return e
-}
-
-func (s *SymLock) partitionForSymbol(symbol string) *partition {
+func (s symLock) partitionForSymbol(symbol string) *sync.Mutex {
 	hash := fnv.New32a()
 	hash.Write([]byte(symbol))
 
-	index := hash.Sum32() % uint32(len(s.partitions))
-	return &s.partitions[index]
+	index := hash.Sum32() % uint32(len(s))
+	return &s[index]
 }
 
-func (s *SymLock) releaseEntry(symbol string, e *symLockEntry) {
-	e.Unlock()
-
-	p := s.partitionForSymbol(symbol)
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-
-	e.refCount--
-	if e.refCount <= 0 {
-		delete(p.entries, symbol)
-	}
+// New creates and returns a new SymLock with a default number of partitions,
+// equal to the number of processors.
+func New() SymLock {
+	return NewWithPartitions(runtime.NumCPU())
 }
 
-func New() *SymLock {
-	return NewWithPartitions(1)
-}
-
-func NewWithPartitions(n int) *SymLock {
-	return &SymLock{
-		partitions: make([]partition, n),
-	}
+// NewWithPartitions creates and returns a new SymLock with the specified
+// number of partitions. The number of partitions effectively places an upper
+// limit on the degree of concurrency.
+func NewWithPartitions(n int) SymLock {
+	s := make(symLock, n)
+	return &s
 }

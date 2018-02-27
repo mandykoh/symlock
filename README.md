@@ -8,7 +8,7 @@ A symbolic lock implementation for Go.
 
 ## Introduction
 
-SymLocks provide mutual exclusion on a string value rather than a specific lock object. This can be useful in situations where the complete set of mutex points isn’t immediately known, or may be too large for up front setup to be practical.
+SymLocks (or named locks) provide mutual exclusion on a string value rather than a specific lock object. This can be useful in situations where the complete set of mutex points isn’t immediately known, or may be too large for up front setup to be practical.
 
 
 ## Example
@@ -19,8 +19,14 @@ Use a SymLock like this:
 s := symlock.New()
 
 s.WithMutex("some string value symbolising a mutex point", func() {
-    // Do some things which require mutexing on something represented by the provided string
+    // Do some things which require mutex on something represented by the provided string
 })
+```
+
+By default, `New()` will return a SymLock with the same number of partitions as there are processors (the degree of concurrency is limited by the number of partitions). You can specify the number of partitions like this:
+
+```go
+s := symlock.NewWithPartitions(16)
 ```
 
 All code using the same SymLock with the same string will be mutexed from each other:
@@ -37,15 +43,5 @@ go s.WithMutex("apple", func() {
 go s.WithMutex("pear", func() {
     // Do some stuff that can run concurrently with code using "apple" as
     // the mutex symbol, but not with other code that might be using "pear"
-})
-```
-
-For very high concurrency situations, it may be more efficient to use partitions to reduce lock contention:
-
-```go
-s := symlock.NewWithPartitions(16)
-
-s.WithMutex("symbol", func() {
-    // Do stuff
 })
 ```
